@@ -8,12 +8,18 @@ on:
       - 'Surfing_service.sh'
       - 'box_bll/scripts/**'
       - '.github/tests/**'
+      - '.github/tools/**'
+      - 'customize.sh'
+      - 'build.sh'
       - '.github/workflows/network-script-tests.yml'
   pull_request:
     paths:
       - 'Surfing_service.sh'
       - 'box_bll/scripts/**'
       - '.github/tests/**'
+      - '.github/tools/**'
+      - 'customize.sh'
+      - 'build.sh'
       - '.github/workflows/network-script-tests.yml'
   workflow_dispatch:
 
@@ -33,5 +39,7 @@ jobs:
           bash -n box_bll/scripts/network.events
           bash -n box_bll/scripts/box.service
           bash -n box_bll/scripts/power-profile.sh
+          sh -n customize.sh
+          sh -n build.sh
       - name: Run mocked network event regressions
         run: python3 -m unittest discover -s .github/tests -v

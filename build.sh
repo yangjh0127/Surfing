@@ -83,10 +83,17 @@ TILE_STAGE=".tile_stage"
 rm -rf "$TILE_STAGE" "$TILE_ZIP"
 mkdir -p "$TILE_STAGE"
 latest_apk=$(find "$APK_DIR" -maxdepth 1 -name "SurfingTile_*_release.apk" 2>/dev/null | sort -V | tail -n 1)
+# Prefer the pinned custom build with in-app updating disabled.
+CUSTOM_TILE_APK="$APK_DIR/SurfingTile_7.0.0_no_update.apk"
+[ ! -f "$CUSTOM_TILE_APK" ] || latest_apk="$CUSTOM_TILE_APK"
 if [ -f "$latest_apk" ]; then
     cp -f "$latest_apk" "$TILE_STAGE/com.github.surfing.apk"
     TILE_CODE=$(awk -F: '/versionCode/ {gsub(/[^0-9]/, "", $2); print $2; exit}' "$APK_DIR/release.json" 2>/dev/null)
     TILE_NAME=$(awk -F'"' '/versionName/ {print $4; exit}' "$APK_DIR/release.json" 2>/dev/null)
+    if [ "$latest_apk" = "$CUSTOM_TILE_APK" ]; then
+        TILE_CODE="26101301"
+        TILE_NAME="7.0.0-no-update"
+    fi
     printf 'versionCode=%s\nversionName=%s\n' "$TILE_CODE" "$TILE_NAME" > "$TILE_STAGE/version"
     (cd "$TILE_STAGE" && zip -r -o -X "../$TILE_ZIP" ./*)
 fi

@@ -101,56 +101,42 @@ restore_subscribe_urls() {
 }
 
 install_surfingtile_apk() {
+  if tile_is_installed; then
+    print_lang "保留已安装的 SurfingTile，已禁用自动更新." "Keeping installed SurfingTile; automatic updates are disabled."
+    return 0
+  fi
   APK_TMP="$INSTALL_DIR/com.github.surfing.apk"
   rm -f "$APK_TMP"
   unzip -o "$SURFING_TILE_ZIP" "com.github.surfing.apk" -d "$INSTALL_DIR" >/dev/null 2>&1
   if [ -f "$APK_TMP" ]; then
     print_lang "正在安装 SurfingTile APK..." "Installing Surfingtile APK..."
-    pm install -r "$APK_TMP"
+    pm install "$APK_TMP"
     rm -f "$APK_TMP"
   else
     print_lang "未找到 SurfingTile APK 文件." "Surfingtile APK not found."
   fi
 }
 
-tile_installed_version() {
-  v=$(dumpsys package com.github.surfing 2>/dev/null | tr ' ' '\n' | awk -F= '/^versionCode=/{print $2; exit}')
-  if [ -z "$v" ]; then
-    v=$(cmd package list packages --show-versioncode com.github.surfing 2>/dev/null | awk -F'versionCode:' '/versionCode:/{print $2; exit}' | tr -d ' ')
-  fi
-  if [ -z "$v" ]; then
-    v=$(pm dump com.github.surfing 2>/dev/null | tr ' ' '\n' | awk -F= '/^versionCode=/{print $2; exit}')
-  fi
-  [ -n "$v" ] && echo "$v" || echo 0
-}
-
-tile_zip_version() {
-  v=$(unzip -p "$SURFING_TILE_ZIP" version 2>/dev/null | awk -F= '/^versionCode=/{print $2; exit}' | tr -d ' ')
-  [ -n "$v" ] && echo "$v" || echo 0
+tile_is_installed() {
+  pm path com.github.surfing >/dev/null 2>&1 ||
+    pm path com.surfing.tile >/dev/null 2>&1
 }
 
 install_surfingtile_if_needed() {
-  installed=$(tile_installed_version)
-  zip_version=$(tile_zip_version)
-
-  if [ "$installed" = "0" ]; then
-    print_lang "未检测到 SurfingTile APP，是否安装？" "SurfingTile APP not found. Install it?"
-    print_lang "音量上键: 安装" "Volume Up: Install"
-    print_lang "音量下键: 跳过" "Volume Down: Skip"
-    print_lang "请等待输入 (10s)..." "Waiting for input (10s)..."
-    if choose_volume_key; then
-      remove_old_surfingtile
-      install_surfingtile_apk
-    else
-      print_lang "已跳过 SurfingTile APP 安装." "Skipped SurfingTile APP installation."
-    fi
-    return
+  if tile_is_installed; then
+    print_lang "保留已安装的 SurfingTile，已禁用自动更新." "Keeping installed SurfingTile; automatic updates are disabled."
+    return 0
   fi
 
-  [ "$zip_version" -le "$installed" ] && return
-
-  print_lang "正在更新 SurfingTile APP: $installed → $zip_version" "Updating SurfingTile APP: $installed -> $zip_version"
-  install_surfingtile_apk
+  print_lang "未检测到 SurfingTile APP，是否安装？" "SurfingTile APP not found. Install it?"
+  print_lang "音量上键: 安装" "Volume Up: Install"
+  print_lang "音量下键: 跳过" "Volume Down: Skip"
+  print_lang "请等待输入 (10s)..." "Waiting for input (10s)..."
+  if choose_volume_key; then
+    install_surfingtile_apk
+  else
+    print_lang "已跳过 SurfingTile APP 安装." "Skipped SurfingTile APP installation."
+  fi
 }
 
 sync_version_from_module_prop() {
@@ -190,11 +176,6 @@ choose_to_restore_config() {
   fi
 }
 
-remove_old_surfingtile() {
-  pm uninstall "com.surfing.tile" >/dev/null 2>&1 || pm uninstall --user 0 "com.surfing.tile" >/dev/null 2>&1
-  OLD_UNINSTALL="$CURRENT_MODULES_DIR/SurfingTile/uninstall.sh"
-  [ -f "$OLD_UNINSTALL" ] && sh "$OLD_UNINSTALL"
-}
 
 choose_language
 
