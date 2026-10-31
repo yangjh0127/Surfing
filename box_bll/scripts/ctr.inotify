@@ -18,8 +18,18 @@ scripts=$(realpath "$0")
 scripts_dir=$(dirname "${scripts}")
 
 events=$1
+network_worker=false
+if [ "$events" = "__network_worker" ]; then
+    events=w
+    network_worker=true
+fi
 [ "$events" = "w" ] || exit 0
-if [ "$events" = "w" ]; then
+. "${scripts_dir}/network.events"
+if [ "$network_worker" != "true" ]; then
+    queue_network_event "$scripts" "control" && exit 0
+fi
+
+if [ "$network_worker" != "true" ]; then
     current_time=$(date +%s)
     last_time=$(cat "$last_check_file" 2>/dev/null)
     last_time=${last_time:-0}

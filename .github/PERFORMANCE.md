@@ -50,3 +50,50 @@ Restart the module or reboot after installing so the new watch masks take effect
 
 Rollback by reinstalling the previous module and restarting/rebooting. Existing
 routing policies and mihomo defaults are unchanged by this batch.
+
+## 第二批：事件合并、日志 I/O 与可选省电配置
+
+网络与控制回调先标记待处理事件，再异步获取 flock 文件锁。获得锁的工作进程
+等待一秒、合并期间的事件后读取当前状态。处理期间的新事件会触发后续一轮；
+释放锁附近的事件也会重新检查，避免简单限流漏掉最后一次变化。
+
+内部刷新跳过原来的两秒时间门限，连接清理的十五秒限流保留。两个处理器各自
+串行化，没有常驻轮询。flock 不可用时回退到原有同步流程；锁由文件描述符持有，
+进程退出时释放。启动时的六十秒等待改为独立定时任务，不阻塞正常事件；没有
+flock 时保留旧行为。
+
+`box.service status/stop` 和重复 start 不再扫描日志。真正启动前才清理，且只
+遍历 run 与核心 log 目录。
+
+### 可选省电配置
+
+`box_bll/scripts/power-profile.sh` 读取现有配置，向标准输出生成完整配置，不会
+自行覆盖或启用。针对仓库使用的块状 YAML 格式，只调整：
+
+- `find-process-mode: strict`：按需识别进程，保留 PROCESS-NAME 规则。
+- health-check 下大于零且小于 900 秒的数字 interval 提升至 900 秒。零、较长
+  间隔、非数字配置保留；订阅更新间隔不变。
+
+代价是面板可能显示较少的进程信息，以及健康检查发现故障更慢。默认 config.yaml
+未修改。不要把输出重定向到输入文件本身。
+
+在手机 Root shell 中进入 `/data/adb/box_bll` 后运行：
+
+```sh
+sh scripts/power-profile.sh > clash/config.powersave.yaml
+bin/clash -t -d clash -f clash/config.powersave.yaml
+```
+
+确认校验通过后，先备份原配置，再选择是否替换并重启模块服务；恢复备份即可
+回退。使用 SurfingTile 配置覆写时需同步检查覆写项。订阅配置更新后应重新生成，
+不要把旧生成文件覆盖到后续更新的配置上。
+
+字段依据：[进程识别](https://github.com/MetaCubeX/Meta-Docs/blob/main/docs/config/general.md)、
+[健康检查](https://wiki.metacubex.one/config/proxy-providers/)。
+
+### 验证范围
+
+Linux flock 测试覆盖短时事件合并、处理期间的最新状态重放。其他新增测试覆盖
+省电配置最小差异、长间隔和停用检查保留、status 无日志扫描。主机测试不代表
+Android 真机验证。安装后仍需检查 WiFi/蜂窝频繁切换、模块开关、手动停止、
+SSID/MAC 过滤，以及延迟约一秒的策略更新是否可接受。

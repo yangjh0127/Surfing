@@ -1,0 +1,24 @@
+#!/system/bin/sh
+# Queue a latest-state refresh without blocking BusyBox inotifyd.
+queue_network_event() {
+    local handler="$1" key="$2"
+    local state_dir="${NETWORK_EVENT_DIR:-/dev/tmp}"
+    command -v flock >/dev/null 2>&1 || return 1
+    mkdir -p "$state_dir" || return 1
+    local pending="$state_dir/surfing_${key}.pending"
+    local lock="$state_dir/surfing_${key}.lock"
+    : > "$pending" || return 1
+    (
+        flock -n 9 || exit 0
+        while [ -f "$pending" ]; do
+            sleep 1
+            rm -f "$pending"
+            # Do not pass the lock to the handler or any long-lived children.
+            "$handler" __network_worker 9>&-
+        done
+        flock -u 9
+        # Cover an event arriving between the loop test and unlocking.
+        [ ! -f "$pending" ] || queue_network_event "$handler" "$key"
+    ) 9>"$lock" >/dev/null 2>&1 &
+    return 0
+}

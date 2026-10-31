@@ -13,7 +13,6 @@ scripts_dir=$(dirname "${scripts}")
 {
     mkdir -p "${run_path}"
     mkdir -p "${box_path}/${bin_name}/log"
-    find "${box_path}" -mtime +3 -type f -name "*.log" -exec rm -f {} +
 } >/dev/null 2>&1
 
 log() {
@@ -205,6 +204,8 @@ case "$1" in
             exit 0
         fi
 
+        # Status/stop and redundant starts must not walk the configuration tree.
+        find "${run_path}" "${box_path}/${bin_name}/log" -mtime +3 -type f -name "*.log" -exec rm -f {} + 2>/dev/null
         log Info "开始执行核心服务启动序列 (主控 PID: ${my_pid})."
         if start_service; then
             uptime_sec=$(cut -d. -f1 /proc/uptime)

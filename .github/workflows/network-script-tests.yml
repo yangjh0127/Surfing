@@ -1,6 +1,14 @@
 name: Network script tests
 
 on:
+  push:
+    branches:
+      - 'perf/**'
+    paths:
+      - 'Surfing_service.sh'
+      - 'box_bll/scripts/**'
+      - '.github/tests/**'
+      - '.github/workflows/network-script-tests.yml'
   pull_request:
     paths:
       - 'Surfing_service.sh'
@@ -22,5 +30,8 @@ jobs:
           bash -n Surfing_service.sh
           bash -n box_bll/scripts/net.inotify
           bash -n box_bll/scripts/ctr.inotify
+          bash -n box_bll/scripts/network.events
+          bash -n box_bll/scripts/box.service
+          bash -n box_bll/scripts/power-profile.sh
       - name: Run mocked network event regressions
         run: python3 -m unittest discover -s .github/tests -v

@@ -6,11 +6,21 @@ SYS_IPTABLES="/system/bin/iptables"
 SYS_IP6TABLES="/system/bin/ip6tables"
 
 events=$1
+network_worker=false
+if [ "$events" = "__network_worker" ]; then
+    events=w
+    network_worker=true
+fi
 # Reject unrelated events before loading configuration and firewall helpers.
 [ "$events" = "w" ] || exit 0
 
 scripts=$(realpath "$0")
 scripts_dir=$(dirname "$scripts")
+
+. "${scripts_dir}/network.events"
+if [ "$network_worker" != "true" ]; then
+    queue_network_event "$scripts" "net" && exit 0
+fi
 
 . "${scripts_dir}/box.config"
 . "${scripts_dir}/box.iptables"
@@ -59,7 +69,7 @@ clear_links() {
 
 rules_add() {
     local now_ts=$(date +%s)
-    if [ -f "$RULES_LOCK" ]; then
+    if [ "$network_worker" != "true" ] && [ -f "$RULES_LOCK" ]; then
         local last_ts=$(cat "$RULES_LOCK")
         [ $((now_ts - last_ts)) -lt 2 ] && return
     fi
@@ -93,13 +103,28 @@ rules_add() {
 
 [ "$events" = "w" ] && {
     rules_add;
-    sleep 1;
+    [ "$network_worker" = "true" ] || sleep 1;
     bin_pid=$(pidof "${bin_name}")
     if [ -n "${bin_pid}" ] && [ "$ipv6" = "disable" ]; then
         disable_ipv6;
     fi
 }
 
-{ [ "$uptime_sec" -lt 360 ] && [ ! -f "$BOOT_STABLE_FLAG" ]; } && { sleep 60; rules_add; touch "$BOOT_STABLE_FLAG"; }
+if [ "$uptime_sec" -lt 360 ] && [ ! -f "$BOOT_STABLE_FLAG" ]; then
+    if command -v flock >/dev/null 2>&1; then
+        # The boot timer must not hold up the event queue for a minute.
+        (
+            flock -n 8 || exit 0
+            [ ! -f "$BOOT_STABLE_FLAG" ] || exit 0
+            sleep 60
+            touch "$BOOT_STABLE_FLAG"
+            queue_network_event "$scripts" net || "$scripts" __network_worker
+        ) 8>"${TMP_DIR}/surfing_boot.lock" >/dev/null 2>&1 &
+    else
+        sleep 60
+        rules_add
+        touch "$BOOT_STABLE_FLAG"
+    fi
+fi
 
 exit 0
