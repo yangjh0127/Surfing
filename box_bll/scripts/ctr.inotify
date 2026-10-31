@@ -24,6 +24,10 @@ if [ "$events" = "__network_worker" ]; then
     network_worker=true
 fi
 [ "$events" = "w" ] || exit 0
+. "${scripts_dir}/box.config"
+
+[ "$enable_network_service_control" != "true" ] && exit 0
+
 . "${scripts_dir}/network.events"
 if [ "$network_worker" != "true" ]; then
     queue_network_event "$scripts" "control" && exit 0
@@ -39,9 +43,6 @@ if [ "$network_worker" != "true" ]; then
     echo "$current_time" > "$last_check_file"
 fi
 
-. "${scripts_dir}/box.config"
-
-[ "$enable_network_service_control" != "true" ] && exit 0
 
 get_current_bssid() {
     local BSSID=$(dumpsys wifi | awk '

@@ -94,13 +94,19 @@ class NetworkEvents(unittest.TestCase):
 
     @unittest.skipUnless(os.name == 'posix' and shutil.which('flock'), 'Linux flock required')
     def test_control_write_reaches_worker_without_requeueing(self):
-        script = self.prepare('ctr.inotify', 'echo loaded >> "$CALLS"\nexit 0\n')
+        script = self.prepare('ctr.inotify', 'if [ "$network_worker" = true ]; then echo loaded >> "$CALLS"; exit 0; fi\nenable_network_service_control=true\n')
         self.run_script(script, 'w')
         deadline = time.monotonic() + 3
         while not self.calls.exists():
             self.assertLess(time.monotonic(), deadline)
             time.sleep(0.01)
         self.assertEqual(self.calls.read_text(), 'loaded\n')
+
+    def test_disabled_control_does_not_queue_work(self):
+        script = self.prepare('ctr.inotify', 'enable_network_service_control=false\n')
+        self.run_script(script, 'w')
+        self.assertFalse((self.root / 'surfing_control.pending').exists())
+        self.assertFalse(self.calls.exists())
 
     def test_connection_cleanup_has_bounded_time(self):
         script = self.prepare('net.inotify', 'bin_name=clash\nipv6=enable\n')
