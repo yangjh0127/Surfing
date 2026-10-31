@@ -47,8 +47,8 @@ while [ ! -f "$CTR_FILE" ]; do
   sleep 3
 done
 
-safe_inotifyd "${SCRIPTS_DIR}/net.inotify" "$NET_DIR"
-safe_inotifyd "${SCRIPTS_DIR}/ctr.inotify" "$CTR_FILE"
+safe_inotifyd "${SCRIPTS_DIR}/net.inotify" "$NET_DIR:w"
+safe_inotifyd "${SCRIPTS_DIR}/ctr.inotify" "$CTR_FILE:w"
 ) &
 
 delete_op_coloros16_fw_rules() {

@@ -1,0 +1,26 @@
+name: Network script tests
+
+on:
+  pull_request:
+    paths:
+      - 'Surfing_service.sh'
+      - 'box_bll/scripts/**'
+      - '.github/tests/**'
+      - '.github/workflows/network-script-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check shell syntax
+        run: |
+          bash -n Surfing_service.sh
+          bash -n box_bll/scripts/net.inotify
+          bash -n box_bll/scripts/ctr.inotify
+      - name: Run mocked network event regressions
+        run: python3 -m unittest discover -s .github/tests -v

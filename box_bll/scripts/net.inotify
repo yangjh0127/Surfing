@@ -6,6 +6,8 @@ SYS_IPTABLES="/system/bin/iptables"
 SYS_IP6TABLES="/system/bin/ip6tables"
 
 events=$1
+# Reject unrelated events before loading configuration and firewall helpers.
+[ "$events" = "w" ] || exit 0
 
 scripts=$(realpath "$0")
 scripts_dir=$(dirname "$scripts")
@@ -48,9 +50,9 @@ clear_links() {
     local RAW_SECRET=$(awk -F'[:#]' '/^[[:space:]]*secret:/ {gsub(/[[:space:]"\r\n\t]/, "", $2); print $2; exit}' "$CLASH_CONFIG")
     {
         if [ -n "$RAW_SECRET" ]; then
-            curl -s -H "Authorization: Bearer $RAW_SECRET" -X DELETE "http://127.0.0.1:${PORT}/connections"
+            curl -s --connect-timeout 2 --max-time 5 -H "Authorization: Bearer $RAW_SECRET" -X DELETE "http://127.0.0.1:${PORT}/connections"
         else
-            curl -s -X DELETE "http://127.0.0.1:${PORT}/connections"
+            curl -s --connect-timeout 2 --max-time 5 -X DELETE "http://127.0.0.1:${PORT}/connections"
         fi
     } >/dev/null 2>&1
 }
@@ -99,3 +101,5 @@ rules_add() {
 }
 
 { [ "$uptime_sec" -lt 360 ] && [ ! -f "$BOOT_STABLE_FLAG" ]; } && { sleep 60; rules_add; touch "$BOOT_STABLE_FLAG"; }
+
+exit 0

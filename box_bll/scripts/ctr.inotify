@@ -18,7 +18,7 @@ scripts=$(realpath "$0")
 scripts_dir=$(dirname "${scripts}")
 
 events=$1
-[ "$events" != "w" ] && return
+[ "$events" = "w" ] || exit 0
 if [ "$events" = "w" ]; then
     current_time=$(date +%s)
     last_time=$(cat "$last_check_file" 2>/dev/null)
@@ -165,10 +165,14 @@ clean_old_logs() {
         }' "$log_file" > "${log_file}.tmp" && mv "${log_file}.tmp" "$log_file"
     fi
 }
-clean_old_logs
+[ "$netfilt_logs" = "true" ] && clean_old_logs
 
 bssid=$(get_current_bssid)
-ssid=$(get_current_ssid)
+# SSID is only needed for filtering or diagnostic output.
+ssid="unknown"
+if [ "$enable_ssid_filter" = "true" ] || [ "$netfilt_logs" = "true" ]; then
+    ssid=$(get_current_ssid)
+fi
 current_ip=$(get_current_ip)
 if [ "$bssid" != "unknown" ]; then
     wifi_status="wifi"
